@@ -9,7 +9,12 @@ this huge cannonball will help you to reintegrate your data.
 
 The steps are easy.
 
-### 1. Convert
+## Configuration
+
+Copy `.env.example` to `.env` and configure `ECOWITT_ACCOUNT` and `ECOWITT_PASSWORD` in `.env` file.
+Install Laravel als described on https://laravel.com/docs/8.x/installation
+
+### 1. Export and Convert
 
 This simple tool will login into your ecowitt.net account, fetch all available devices and download all available data
 for the range between `startdate` and `enddate`.
