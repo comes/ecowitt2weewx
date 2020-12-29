@@ -3,19 +3,27 @@
 namespace App\Console\Commands;
 
 use App\Exports\WeewxExport;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Maatwebsite\Excel\Facades\Excel;
 use SplFileInfo;
 
 class EcowittConvertData extends Command
 {
+    /** @var Carbon */
+    protected $startDate;
+
+    /** @var Carbon */
+    protected $endDate;
+
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'ecowitt:convert {path}';
+    protected $signature = 'ecowitt:export {startDate} {endDate}';
 
     /**
      * The console command description.
@@ -41,19 +49,42 @@ class EcowittConvertData extends Command
      */
     public function handle()
     {
-        $path = $this->argument('path');
-        $files = collect(File::allFiles($path));
-        $outputData = [];
-        $files->each(function(SplFileInfo $file) use (&$outputData) {
-            $ecowitt = json_decode(File::get($file->getPathname()),true);
-            if (empty(data_get($ecowitt, 'list.tempf'))) {
-                $this->comment("skip '{$file->getBasename()}'. next file");
-                return;
-            }
+        $session_id = $this->getSessionId();
+        $device_ids = $this->getDeviceIds($session_id);
+
+        $this->startDate = Carbon::parse($this->argument('startDate'))->startOfDay()
+            ->format('Y-m-d H:i');
+
+        $this->startDate = Carbon::parse($this->argument('endDate'))->endOfDay()
+            ->format('Y-m-d H:i');
+
+        $device_ids->each(function ($deviceId) use ($session_id) {
+
+            $startDate = $this->startDate;
+            $endDate = $this->endDate;
+
+            $response = Http::withCookies(
+                [
+                    'ousaite_session' => $session_id,
+                ], 'www.ecowitt.net')
+                ->asForm()
+                ->post('https://webapi.www.ecowitt.net/index/get_data', [
+                    'device_id' => $deviceId,
+                    'is_list' => 0,
+                    'mode' => 0,
+                    'sdate' => $startDate,
+                    'edate' => $endDate,
+                    'page' => 1,
+                ]);
+
+            $ecowitt = $response->json();
+
+            // declare output variable
+            $outputData = [];
 
             // Temperature in C
             $outdoorTemp = $this->getData($ecowitt, 'list.tempf.list.tempf');
-            
+
             // Feels Like in C
             $outdoorTempGust = $this->getData($ecowitt, 'list.tempf.list.sendible_temp');
 
@@ -74,7 +105,7 @@ class EcowittConvertData extends Command
 
             // uv
             $uvi = $this->getData($ecowitt, 'list.uv.list.uv');
-            
+
             // rainrate in mm/hr b
             $rainRateH = $this->getData($ecowitt, 'list.rain.list.rainratein');
 
@@ -96,7 +127,7 @@ class EcowittConvertData extends Command
             // pressure absolute in hPa
             $pressureAbs = $this->getData($ecowitt, 'list.pressure.list.baromabsin');
 
-            foreach($outdoorTemp as $date => $temp) {
+            foreach ($outdoorTemp as $date => $temp) {
                 $tmp = [
                     'date_and_time' => $date,                               // %Y-%m-%d %H:%M:%S
                     'temp_out' => $temp,                                    // degree
@@ -121,14 +152,65 @@ class EcowittConvertData extends Command
                 ];
                 $outputData[] = $tmp;
             }
+
+            Excel::store(
+                new WeewxExport($outputData),
+                "ecowitt_{$deviceId}.csv",
+                null,
+                \Maatwebsite\Excel\Excel::CSV
+            );
         });
-        Excel::store(new WeewxExport($outputData), 'weewx.csv', null, \Maatwebsite\Excel\Excel::CSV);
     }
 
-    public function getData($stack, $key) {
+    protected function getData($stack, $key)
+    {
         return collect(data_get($stack, $key))
             ->mapWithKeys(function ($value) {
                 return [$value[0] => $value[1] ?: null];
             });
+    }
+
+    /**
+     * simulate login to ecowitt.net and store session_id from cookie
+     *
+     * @return mixed
+     */
+    protected function getSessionId()
+    {
+        $response = Http::asForm()->post('https://webapi.www.ecowitt.net/user/site/login', [
+            'account' => env('ECOWITT_ACCOUNT'),
+            'password' => env('ECOWITT_PASSWORD'),
+            'authorize' => '',
+        ]);
+
+        $loginData = $response->json();
+
+        $cookies = $response->cookies();
+
+        return $cookies->getCookieByName('ousaite_session')->getValue();
+    }
+
+    /**
+     * fetch all available device IDs
+     * @param $session_id
+     * @return \Illuminate\Support\Collection
+     */
+    protected function getDeviceIds($session_id): \Illuminate\Support\Collection
+    {
+        $deviceResponse = Http::withCookies(
+            [
+                'ousaite_session' => $session_id,
+            ], 'www.ecowitt.net')
+            ->asForm()
+            ->post('https://webapi.www.ecowitt.net/index/get_devices', [
+                'uid' => '',
+                'type' => 1
+            ]);
+
+        $devices = collect(data_get($deviceResponse->json(), 'device_list'));
+
+        return $devices->map(function ($device) {
+            return data_get($device, 'id');
+        });
     }
 }

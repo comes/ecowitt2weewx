@@ -4,108 +4,31 @@
 
 ## General
 
-In case your weather station send all data to ecowitt.net and you lost your weewx database, this huge cannonball will help you to reintegrate your data.
+In case your weather station send all data to ecowitt.net and you lost your weewx database,
+this huge cannonball will help you to reintegrate your data.
 
 The steps are easy.
 
-### 1. Fetch
+### 1. Convert
 
-Get your data from 'undocumentend' ecowitt API.
-
-Use browser inspect tools to get session_id after login. You find this information within your cookies OR you can inspect XHR request.
-
-Replace SESSION_ID and DEVICE_ID in this bash script.
-
-*HINT*: I'm running Mac OS. You need to install `coreutils` before. **=>** `brew install coreutils`
-
-This dirty script can download your data on a daily base or per week. Adjust the script to your needs.
-It will create JSON Files in your current directory. These JSON Files have to be converted in step 2.
+This simple tool will login into your ecowitt.net account, fetch all available devices and download all available data
+for the range between `startdate` and `enddate`.
 
 ```sh
-#!/bin/bash
-SESSION_ID="<MY SESSION ID>" #
-DEVICE_ID="<MY DEVICE ID>" # Fetch this ID from ecowitt URL. https://www.ecowitt.net/home/index?id=<MYID>
-
-function week2date () {
-  local year=$1
-  local week=$2
-  local dayofweek=$3
-  gdate -d "$year-01-01 +$(( $week * 7 + 1 - $(gdate -d "$year-01-04" +%u ) - 3 )) days -2 days + $dayofweek days" +"%Y-%m-%d"
-}
-
-function getDateOfDay() {
-	local day=$1
-	local year=$2
-	gdate -d "$year-1-1 +$day days" +%F
-}
-
-function loadByDate() {
-	local date=$1
-	curl -s 'https://webapi.www.ecowitt.net/index/get_data' \
-		-X 'POST' \
-		-H 'Accept: application/json, text/plain, */*' \
-		-H 'Content-Type: application/x-www-form-urlencoded' \
-		-H 'Origin: https://www.ecowitt.net' \
-		-H "Cookie: ousaite_session=${SESSION_ID}; ousaite_language=english; ousaite_loginstatus=1" \
-		-H 'Content-Length: 93' \
-		-H 'Accept-Language: en-us' \
-		-H 'Host: webapi.www.ecowitt.net' \
-		-H "Referer: https://www.ecowitt.net/home/index?id=${DEVICE_ID}" \
-		-H 'Accept-Encoding: gzip, deflate, br' \
-		-H 'Connection: keep-alive' \
-		--data "device_id=${DEVICE_ID}&is_list=0&mode=0&sdate=${date}%2000%3A00&edate=${date}%2023%3A59&page=1" | gunzip > $date.json
-}
-
-
-function loadByWeek() {
-	local start=$1;
-	local end=$2;
-	local week=$3;
-	curl 'https://webapi.www.ecowitt.net/index/get_data' \
-		-X 'POST' \
-		-H 'Accept: application/json, text/plain, */*' \
-		-H 'Content-Type: application/x-www-form-urlencoded' \
-		-H 'Origin: https://www.ecowitt.net' \
-		-H "Cookie: ousaite_session=${SESSION_ID}; ousaite_language=english; ousaite_loginstatus=1" \
-		-H 'Content-Length: 93' \
-		-H 'Accept-Language: en-us' \
-		-H 'Host: webapi.www.ecowitt.net' \
-		-H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.2 Safari/605.1.15' \
-		-H "Referer: https://www.ecowitt.net/home/index?id=${DEVICE_ID}" \
-		-H 'Accept-Encoding: gzip, deflate, br' \
-		-H 'Connection: keep-alive' \
-		--data "device_id=${DEVICE_ID}&is_list=0&mode=0&sdate=${start}%2001%3A00&edate=${end}%2023%3A59&page=1" | gunzip > $week.json
-}
-
-for day in {0..365}; do
-	DATE=$(getDateOfDay $day 2020);
-	echo "Fetching Date: $DATE";
-	loadByDate $DATE;
-	sleep 1;
-done
-
-for week in {1..53}; do
-	STARTDATE=$(week2date 2020 $week 1);
-	ENDDATE=$(week2date 2020 $week 7);
-	echo "Fetching Week $week ..."
-
-	loadByWeek $STARTDATE $ENDDATE $week
-done
+php artisan ecowitt:export {startdate} {enddate}
 ```
 
-### 2. Convert
-
-Convert json files to importable format for wee_import using this cannonball tool:
-
+example
 ```sh
-php artisan ecowitt:convert {path of json files}
+php artisan ecowitt:export 2020-01-01 2020-12-31
 ```
 
 Details see source file: `/app/Console/Commands/EcowittConvertData.php`
 
-This script will generate a CSV File which is compatible with wee_import config in step 3. The file will be generated in `/storage/app/weewx.csv`.
+This script will generate a CSV File which is compatible with wee_import config in step 2.
+The file will be generated in `/storage/app/ecowitt_<device_id>.csv`.
 
-### 3. import
+### 2. import
 
 Import your data with wee_import. Sample config below
 
