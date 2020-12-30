@@ -5,14 +5,10 @@
 ## General
 
 In case your weather station send all data to ecowitt.net and you lost your weewx database,
-this huge cannonball will help you to reintegrate your data.
+this huge cannonball will help you to reintegrate your data. build with https://laravel-zero.com
 
 The steps are easy.
 
-## Configuration
-
-Copy `.env.example` to `.env` and configure `ECOWITT_ACCOUNT` and `ECOWITT_PASSWORD` in `.env` file.
-Install Laravel als described on https://laravel.com/docs/8.x/installation
 
 ### 1. Export and Convert
 
@@ -20,18 +16,18 @@ This simple tool will login into your ecowitt.net account, fetch all available d
 for the range between `startdate` and `enddate`.
 
 ```sh
-php artisan ecowitt:export {startdate} {enddate}
+./ecowitt2weewx export --user <ecowitt username> --pass <ecowitt password> start_date end_date
 ```
 
 example
 ```sh
-php artisan ecowitt:export 2020-01-01 2020-12-31
+./ecowitt2weewx export --user foo@example.org --pass 12345 2020-01-01 2020-12-31
 ```
 
-Details see source file: `/app/Console/Commands/EcowittConvertData.php`
+Details see source file: `/app/Commands/EcowittExportCommand.php`
 
 This script will generate a CSV File which is compatible with wee_import config in step 2.
-The file will be generated in `/storage/app/ecowitt_<device_id>.csv`.
+The file will be generated in `ecowitt_<device_id>.csv`.
 
 ### 2. import
 

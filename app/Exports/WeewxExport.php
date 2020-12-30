@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithCustomCsvSettings;
@@ -10,7 +11,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 
 class WeewxExport implements FromArray, WithCustomCsvSettings, WithHeadings
 {
-
+    use Exportable;
     protected $weatherData;
 
     public function __construct($data)
@@ -19,8 +20,8 @@ class WeewxExport implements FromArray, WithCustomCsvSettings, WithHeadings
     }
 
     /**
-    * @return \Illuminate\Support\Collection
-    */
+     * @return \Illuminate\Support\Collection
+     */
     public function array(): array
     {
         return $this->weatherData;
