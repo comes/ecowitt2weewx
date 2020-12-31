@@ -2,12 +2,9 @@
 
 namespace App\Commands;
 
-//use App\Exports\WeewxExport;
-use App\Exports\WeewxExport;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
-use Maatwebsite\Excel\Facades\Excel;
 
 class EcowittExportCommand extends Command
 {
