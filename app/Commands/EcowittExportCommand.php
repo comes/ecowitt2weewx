@@ -55,6 +55,7 @@ class EcowittExportCommand extends Command
 
         if (empty($this->ecowitt_account) || empty($this->ecowitt_passphrase)) {
             $this->error('Ecowitt Username or passphrase required!');
+
             return 1;
         }
 
@@ -66,7 +67,6 @@ class EcowittExportCommand extends Command
         $this->endDate = Carbon::parse($this->argument('endDate'))->endOfDay();
 
         $device_ids->each(function ($deviceId) use ($session_id) {
-
             $startDate = $this->startDate->clone();
             $endDate = $this->endDate->clone();
             // declare output variable
@@ -91,7 +91,7 @@ class EcowittExportCommand extends Command
 
                 $ecowitt = $response->json();
 
-                $this->times = data_get($ecowitt,'times',[]);
+                $this->times = data_get($ecowitt, 'times', []);
 
                 // Temperature in C
                 $this->debug('fetch outdoor temp');
@@ -99,7 +99,7 @@ class EcowittExportCommand extends Command
 
                 // Feels Like in C
                 $this->debug('fetch outdoor temp gust');
-                $outdoorTempGust = $this->getData($ecowitt, 'list.tempf.list.sendible_temp');
+                $outdoorTempGust = $this->getData($ecowitt, 'list.tempf.list.apparent_temp');
 
                 // Dew Point in C
                 $this->debug('collecting: Dew Point in C');
@@ -119,11 +119,18 @@ class EcowittExportCommand extends Command
 
                 // solar in lx -- Solar and UVI
                 $this->debug('collecting: solar in lx -- Solar and UVI');
-                $solarradiation = $this->getData($ecowitt, 'list.solarradiation.list.solarradiation');
+                $solarradiation = $this->getData($ecowitt, 'list.so_uv.list.solarradiation');
 
                 // uv
                 $this->debug('collecting: uv');
-                $uvi = $this->getData($ecowitt, 'list.uv.list.uv');
+                $uvi = $this->getData($ecowitt, 'list.so_uv.list.uv');
+
+                //replace empty values with 0
+                foreach ($uvi as $key => $value) {
+                    if (empty($value)) {
+                        $uvi[$key] = '0';
+                    }
+                }
 
                 // rainrate in mm/hr b
                 $this->debug('collecting: rainrate in mm/hr b');
@@ -179,10 +186,9 @@ class EcowittExportCommand extends Command
                     $outputData[] = $tmp;
                 }
                 $startDate = $startDate->addDay()->startOfDay();
-            } while ( $startDate->lte($endDate) );
+            } while ($startDate->lte($endDate));
 
-            $this->export(getcwd() . "/ecowitt_{$deviceId}.csv", $outputData);
-
+            $this->export(getcwd()."/ecowitt_{$deviceId}.csv", $outputData);
         });
     }
 
@@ -191,6 +197,7 @@ class EcowittExportCommand extends Command
         return collect(data_get($stack, $key))
             ->mapWithKeys(function ($value, $idx) {
                 $dateTime = data_get($this->times, $idx);
+
                 return [$dateTime => $value ?: null];
             });
     }
@@ -229,7 +236,7 @@ class EcowittExportCommand extends Command
             ->asForm()
             ->post('https://webapi.www.ecowitt.net/index/get_devices', [
                 'uid' => '',
-                'type' => 1
+                'type' => 1,
             ]);
 
         $devices = collect(data_get($deviceResponse->json(), 'device_list'));
@@ -244,12 +251,13 @@ class EcowittExportCommand extends Command
      * @param string $fileName
      * @param array $data
      */
-    protected function export(string $fileName, array $data) {
-        if(isset($data['0'])){
+    protected function export(string $fileName, array $data)
+    {
+        if (isset($data['0'])) {
             $fp = fopen($fileName, 'w+');
-            fputs($fp, implode(',',array_keys($data['0'])) . "\n");
-            foreach($data AS $values){
-                fputs($fp, implode(',', $values) . "\n");
+            fwrite($fp, implode(',', array_keys($data['0']))."\n");
+            foreach ($data as $values) {
+                fwrite($fp, implode(',', $values)."\n");
             }
             fclose($fp);
         }
@@ -261,14 +269,11 @@ class EcowittExportCommand extends Command
      */
     protected function debug(string $msg, ...$args)
     {
-
         if ($this->option('debug')) {
             $this->info($msg);
-            if (!empty($args)) {
+            if (! empty($args)) {
                 dump($args);
             }
-
         }
-
     }
 }
