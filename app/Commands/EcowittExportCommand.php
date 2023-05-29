@@ -99,7 +99,7 @@ class EcowittExportCommand extends Command
 
                 // Feels Like in C
                 $this->debug('fetch outdoor temp gust');
-                $outdoorTempGust = $this->getData($ecowitt, 'list.tempf.list.sendible_temp');
+                $outdoorTempGust = $this->getData($ecowitt, 'list.tempf.list.apparent_temp');
 
                 // Dew Point in C
                 $this->debug('collecting: Dew Point in C');
@@ -119,11 +119,11 @@ class EcowittExportCommand extends Command
 
                 // solar in lx -- Solar and UVI
                 $this->debug('collecting: solar in lx -- Solar and UVI');
-                $solarradiation = $this->getData($ecowitt, 'list.solarradiation.list.solarradiation');
+                $solarradiation = $this->getData($ecowitt, 'list.so_uv.list.solarradiation');
 
                 // uv
                 $this->debug('collecting: uv');
-                $uvi = $this->getData($ecowitt, 'list.uv.list.uv');
+                $uvi = $this->getData($ecowitt, 'list.so_uv.list.uv');
 
                 // rainrate in mm/hr b
                 $this->debug('collecting: rainrate in mm/hr b');
