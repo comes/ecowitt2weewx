@@ -16,6 +16,7 @@ class EcowittExportCommand extends Command
     protected $endDate;
 
     protected $ecowitt_account;
+
     protected $ecowitt_passphrase;
 
     /**
@@ -239,8 +240,6 @@ class EcowittExportCommand extends Command
 
     /**
      * fetch all available device IDs
-     * @param $session_id
-     * @return \Illuminate\Support\Collection
      */
     protected function getDeviceIds($session_id): \Illuminate\Support\Collection
     {
@@ -263,8 +262,6 @@ class EcowittExportCommand extends Command
 
     /**
      * Takes in a filename and an array associative data array and outputs a csv file
-     * @param string $fileName
-     * @param array $data
      */
     protected function export(string $fileName, array $data)
     {
@@ -279,8 +276,7 @@ class EcowittExportCommand extends Command
     }
 
     /**
-     * @param string $msg
-     * @param mixed ...$args
+     * @param  mixed  ...$args
      */
     protected function debug(string $msg, ...$args)
     {
