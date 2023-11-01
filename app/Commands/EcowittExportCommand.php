@@ -95,35 +95,35 @@ class EcowittExportCommand extends Command
                 $this->times = data_get($ecowitt, 'times', []);
 
                 // Temperature in C
-                $this->debug('fetch outdoor temp');
+                $this->debug('fetch outTemp');
                 $outdoorTemp = $this->getData($ecowitt, 'list.tempf.list.tempf');
 
                 // Feels Like in C
-                $this->debug('fetch outdoor temp gust');
-                $outdoorTempGust = $this->getData($ecowitt, 'list.tempf.list.apparent_temp');
+                $this->debug('fetch outTempApp');
+                $outdoorTempApp = $this->getData($ecowitt, 'list.tempf.list.apparent_temp');
 
                 // Dew Point in C
-                $this->debug('collecting: Dew Point in C');
-                $outdoorDewTemp = $this->getData($ecowitt, 'list.tempf.list.drew_temp');
+                $this->debug('fetch dewpoint');
+                $outdoorTempDew = $this->getData($ecowitt, 'list.tempf.list.drew_temp');	// yes ecowitt calls it drew_temp :)
 
                 // humidity in %
-                $this->debug('collecting: humidity in %');
+                $this->debug('fetch outHumidity %');
                 $outdoorHumidity = $this->getData($ecowitt, 'list.humidity.list.humidity');
 
                 // temp indoor in C
-                $this->debug('collecting: temp indoor in C');
+                $this->debug('fetch inTemp');
                 $indoorTemp = $this->getData($ecowitt, 'list.tempinf.list.tempinf');
 
                 // humidityin in %
-                $this->debug('collecting: humidityin in %');
-                $indoorHumidity = $this->getData($ecowitt, 'list.humidity.list.humidity');
+                $this->debug('fetch inHumidityin %');
+                $indoorHumidity = $this->getData($ecowitt, 'list.humidityin.list.humidityin');
 
                 // solar in lx -- Solar and UVI
-                $this->debug('collecting: solar in lx -- Solar and UVI');
-                $solarradiation = $this->getData($ecowitt, 'list.so_uv.list.solarradiation');
+                $this->debug('fetch solar radiation');
+                $solarRadiation = $this->getData($ecowitt, 'list.so_uv.list.solarradiation');
 
                 // uv
-                $this->debug('collecting: uv');
+                $this->debug('fetch uv index');
                 $uvi = $this->getData($ecowitt, 'list.so_uv.list.uv');
 
                 //replace empty values with 0
@@ -134,62 +134,76 @@ class EcowittExportCommand extends Command
                 }
 
                 // rainrate in mm/hr b
-                $this->debug('collecting: rainrate in mm/hr b');
-                $rainRateH = $this->getData($ecowitt, 'list.rain.list.rainratein');
+                $this->debug('fetch rainratein');
+                $rainRateIn = $this->getData($ecowitt, 'list.rain.list.rainratein');
 
                 // daily rainrate total mm/hr
-                $this->debug('collecting: daily rainrate total mm/hr');
-                $rainRateDaily = $this->getData($ecowitt, 'list.rain.list.dailyrainin');
+                $this->debug('fetch dailyrainin');
+                $dailyRainIn = $this->getData($ecowitt, 'list.rain.list.dailyrainin');
 
                 // wind_speed in m/s
-                $this->debug('collecting: wind_speed in m/s');
-                $windspeed = $this->getData($ecowitt, 'list.wind_speed.list.windspeedmph');
+                $this->debug('fetch windspeedmph (kmh)');
+                $windSpeed = $this->getData($ecowitt, 'list.wind.list.windspeedmph'); // this key is called mph but units in data struct is kmh :/
 
                 // windGust
-                $this->debug('collecting: windGust');
-                $windGust = $this->getData($ecowitt, 'list.wind_speed.list.windgustmph');
+                $this->debug('fetch windgustmph (kmh)');
+                $windGust = $this->getData($ecowitt, 'list.wind.list.windgustmph');  // wind gust key called mph but units in data struct is kmh
 
                 // winddir in degree
-                $this->debug('collecting: winddir in degree');
-                $windir = $this->getData($ecowitt, 'list.winddir.list.winddir');
+                $this->debug('fetch winddir');
+                $windDir = $this->getData($ecowitt, 'list.wind.list.winddir');
 
                 // pressure relative in hPa
-                $this->debug('collecting: pressure relative in hPa');
+                $this->debug('fetch baromrelin');
                 $pressureRel = $this->getData($ecowitt, 'list.pressure.list.baromrelin');
 
                 // pressure absolute in hPa
-                $this->debug('collecting: pressure absolute in hPa');
+                $this->debug('fetch baromabsin');
                 $pressureAbs = $this->getData($ecowitt, 'list.pressure.list.baromabsin');
 
                 foreach ($outdoorTemp as $date => $temp) {
+                    if (! $temp) {
+                        $this->debug('Skipping a bogus index');
+
+                        continue;
+                    }
+                    $this->debug('unpacking $temp: '.$temp);
                     $tmp = [
-                        'date_and_time' => $date,                               // %Y-%m-%d %H:%M:%S
-                        'temp_out' => $temp,                                    // degree
-                        'temp_out_gust' => data_get($outdoorTempGust, $date),   // degree
-                        'temp_out_dew' => data_get($outdoorDewTemp, $date),     // degree
-                        'humid_out' => data_get($outdoorHumidity, $date),       // percent
-                        'temp_in' => data_get($indoorTemp, $date),              // degree
-                        'humid_in' => data_get($indoorHumidity, $date),         // percent
-                        'rad' => data_get($solarradiation, $date),              // lx
+                        'time' => $date,                               		// %Y-%m-%d %H:%M:%S
+
+                        'outTemp' => $temp,                                    	// degree
+                        'outTempApp' => data_get($outdoorTempApp, $date),   	// degree
+                        'dewpoint' => data_get($outdoorTempDew, $date),     // degree
+                        'outHumidity' => data_get($outdoorHumidity, $date),     // percent
+
+                        'inTemp' => data_get($indoorTemp, $date),              	// degree
+                        'inHumidity' => data_get($indoorHumidity, $date),       // percent
+
+                        'radiation' => data_get($solarRadiation, $date),        // lx
                         'uv' => data_get($uvi, $date),
-                        'rain' => data_get($rainRateH,                          // mm
+
+                        'rain_rate' => data_get($rainRateIn,                          // mm
                             $date
                         ),
-                        'rain_daily' => data_get($rainRateDaily, $date),        // mm
-                        'wind' => data_get($windspeed,                          // m_per_second
+                        'rain_daily' => data_get($dailyRainIn, $date),        // mm
+
+                        'wind_speed' => data_get($windSpeed,                          // m_per_second
                             $date
                         ),
-                        'wind_gust' => data_get($windGust, $date),              // m_per_second
-                        'wind_dir' => data_get($windir, $date),                 // degree_compass
-                        'pressure_rel' => data_get($pressureRel, $date),        // hPa
+                        'windGust' => data_get($windGust, $date),              // m_per_second
+                        'windDir' => data_get($windDir, $date),                 // degree_compass
+
                         'pressure_abs' => data_get($pressureAbs, $date),        // hPa
+                        'pressure_rel' => data_get($pressureRel, $date),
                     ];
                     $outputData[] = $tmp;
                 }
                 $startDate = $startDate->addDay()->startOfDay();
             } while ($startDate->lte($endDate));
 
-            $this->export(getcwd()."/ecowitt_{$deviceId}.csv", $outputData);
+            $outFile = getcwd()."/export_ecowitt_{$deviceId}.csv";
+            $this->export($outFile, $outputData);
+            $this->debug('exported to output file: '.$outFile);
         });
     }
 
